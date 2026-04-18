@@ -6,7 +6,7 @@ This file is loaded by Claude Code at the start of every session in this repo.
 
 ## Project
 
-Brain-Wrought is an independent open benchmark for personal AI knowledge systems. Three axes: retrieval, ingestion, personalization. Sealed qrels. Reproducibility-first. Target: Berkeley AgentX-AgentBeats Phase 2 submission by June 20, 2026.
+Brain-Wrought is an independent open benchmark for personal AI knowledge systems. Three axes: retrieval, ingestion, personalization. Sealed qrels. Reproducibility-first. Target: arxiv preprint on v1 launch (summer 2026); NeurIPS 2027 Evaluations & Datasets Track as formal academic venue.
 
 ## Your role in this session
 
