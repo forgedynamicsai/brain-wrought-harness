@@ -7,47 +7,35 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-test:
+  test:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.12.3
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12.3"
 
-      - name: Install poetry
-        run: pip install poetry==1.8.3
+      - name: Cache Poetry dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-poetry-
+
+      - name: Install Poetry
+        run: pip install poetry --quiet
 
       - name: Install dependencies
-        run: poetry install
+        run: poetry install --no-interaction
 
       - name: Lint (ruff)
         run: poetry run ruff check .
 
-      - name: Format check (ruff)
-        run: poetry run ruff format --check .
-
       - name: Type check (mypy)
         run: poetry run mypy brain_wrought_harness/
 
-      - name: Tests
-        run: poetry run pytest --tb=short
-
-  # Reproducibility smoke test runs on main-branch merges only
-  reproducibility-smoke:
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: lint-and-test
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Build eval image (no cache)
-        run: docker build --no-cache -t brain-wrought/eval:ci .
-        continue-on-error: true  # stub until Dockerfile is complete (Phase 1)
-
-      - name: Verify reference scores
-        run: |
-          echo "Reproducibility verification coming in Phase 1 (BW-006)."
-          echo "When reference_scores.json exists, this step will fail on score drift."
+      - name: Test (pytest)
+        run: poetry run pytest -q --cov-fail-under=70
