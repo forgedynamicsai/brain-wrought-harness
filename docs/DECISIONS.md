@@ -82,4 +82,12 @@ Format: date, decision, reasoning, alternative considered.
 
 ---
 
+## 2026-04-19 — BW-002 split into BW-002a (scaffolding) + BW-002b (semantic completeness)
+
+- **Decision:** BW-002a ships the data models, determinism machinery, and shared slug logic as an honest skeleton. BW-002b (brain-wrought-engine issue #7) covers the semantic work: typed query taxonomy, abstention handling, non-title query text, and Sonnet 4.6 LLM verification pass.
+- **Reasoning:** Agent's first pass under-scoped the full BW-002 spec but built correct foundations. Splitting preserves real work while being honest about what's complete.
+- **Constraint added (CRITICAL):** BW-006 (reference submission) must NOT unblock on BW-002a alone. It requires BW-002b's typed queries and non-title query text, or the naive grep baseline will score ~100% trivially (query text == note title → trivial exact match). BW-006 unblocks on BW-002b merge, not BW-002a.
+
+---
+
 *(Append new decisions below. Never edit past entries — add a superseding entry if direction changes.)*
