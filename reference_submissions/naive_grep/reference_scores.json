@@ -1,0 +1,9 @@
+{
+  "_note": "Placeholder — scores not yet captured. Docker is not installed in this WSL2 environment. Populate after first successful docker build + self-eval run.",
+  "_populated": false,
+  "axis": "retrieval",
+  "p_at_10": null,
+  "recall_at_10": null,
+  "mrr": null,
+  "ndcg_at_10": null
+}
