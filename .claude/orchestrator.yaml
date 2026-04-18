@@ -1,0 +1,31 @@
+orchestrator_version: 0.1.0
+project: brain-wrought
+
+repos:
+  primary:
+    name: forgedynamicsai/brain-wrought-harness
+    role: primary
+    agent_spawn: enabled
+  watched:
+    - name: forgedynamicsai/brain-wrought-engine
+      agent_spawn: enabled
+    - name: forgedynamicsai/brain-wrought-skills
+      agent_spawn: enabled
+  sealed:
+    name: forgedynamicsai/brain-wrought-sealed
+    agent_spawn: DISABLED
+    reason: "Sealed artifacts. No agents. Manual commits only."
+
+labels_watched:
+  - phase-1
+  - wave-1
+
+defaults:
+  model: claude-sonnet-4-6
+  max_parallel_agents: 4
+  pr_target_branch: main
+  require_human_review: true
+  require_passing_ci: true
+
+branch_naming: issue/BW-{number}-{slug}
+commit_convention: conventional-commits
