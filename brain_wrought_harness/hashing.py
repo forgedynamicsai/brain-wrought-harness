@@ -3,16 +3,12 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-import tomllib
-from pathlib import Path
+from importlib.metadata import version
 
 
 def get_harness_version() -> str:
-    """Read version from pyproject.toml at runtime."""
-    pyproject = Path(__file__).parent.parent / "pyproject.toml"
-    with pyproject.open("rb") as f:
-        data = tomllib.load(f)
-    return str(data["tool"]["poetry"]["version"])
+    """Return the installed package version via importlib.metadata."""
+    return version("brain-wrought")
 
 
 def get_image_digest(docker_image: str) -> str:

@@ -4,13 +4,18 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
-from brain_wrought_harness.hashing import compute_submission_hash, get_harness_version
+from brain_wrought_harness.hashing import (
+    compute_submission_hash,
+    get_harness_version,
+    get_image_digest,
+)
 from brain_wrought_harness.models import AxisResult, EvaluationConfig, EvaluationResult
 
 app = typer.Typer(
@@ -27,11 +32,24 @@ class OutputFormat(str, Enum):
     human = "human"
 
 
+def _resolve_digest(docker_image: str) -> str:
+    """Return the image content digest; fall back to hashing the tag on failure."""
+    try:
+        return get_image_digest(docker_image)
+    except Exception as exc:
+        print(
+            f"[brain-wrought] WARNING: could not get image digest ({exc}); "
+            "falling back to tag hash — submission_hash may not be stable across pulls.",
+            file=sys.stderr,
+        )
+        return docker_image
+
+
 def _run_docker_eval(docker_image: str, payload: dict[str, object]) -> EvaluationResult:
     """Run the Docker container and parse its stdout as a list of AxisResults."""
     harness_version = get_harness_version()
-    # Use the image tag as the digest placeholder until get_image_digest is wired in Phase 2.
-    submission_hash = compute_submission_hash(docker_image, harness_version)
+    digest = _resolve_digest(docker_image)
+    submission_hash = compute_submission_hash(digest, harness_version)
 
     try:
         result = subprocess.run(

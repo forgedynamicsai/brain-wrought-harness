@@ -208,6 +208,15 @@ def test_self_eval_malformed_output(
 # ---------------------------------------------------------------------------
 
 
+def test_get_harness_version_non_empty() -> None:
+    """get_harness_version returns a non-empty string (importlib.metadata path)."""
+    from brain_wrought_harness.hashing import get_harness_version
+
+    v = get_harness_version()
+    assert isinstance(v, str)
+    assert len(v) > 0
+
+
 def test_submission_hash_deterministic() -> None:
     """compute_submission_hash with same inputs always returns same hash."""
     from brain_wrought_harness.hashing import compute_submission_hash
