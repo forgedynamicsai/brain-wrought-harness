@@ -15,3 +15,14 @@ def test_help_exits_zero() -> None:
 def test_self_eval_help_exits_zero() -> None:
     result = runner.invoke(app, ["self-eval", "--help"])
     assert result.exit_code == 0
+
+
+def test_evaluate_dry_run() -> None:
+    result = runner.invoke(app, ["evaluate", "myimage:latest", "--dry-run"])
+    assert result.exit_code == 0
+    assert "submission_hash" in result.output or "docker_image" in result.output
+
+
+def test_evaluate_no_dry_run() -> None:
+    result = runner.invoke(app, ["evaluate", "myimage:latest"])
+    assert result.exit_code == 1
