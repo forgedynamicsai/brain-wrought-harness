@@ -73,4 +73,13 @@ Format: date, decision, reasoning, alternative considered.
 
 ---
 
+## 2026-04-18 — Keep brain_wrought schema in wroughtai project through v1 launch
+
+- **Decision:** Do not extract brain_wrought to a dedicated Supabase project before v1 launch (June 2026). Defer until a natural free-slot opens post-launch.
+- **Reasoning:** Migration would interrupt active harness development. Isolation guarantee (separate schema, independent RLS) is sufficient for the benchmark period. No user-visible difference.
+- **Exit condition:** When a free Supabase slot becomes available AND there is a natural merge window, run `migrations/0001_initial.sql` against the new project and drop `brain_wrought` schema from wroughtai.
+- **Constraint added:** brain_wrought schema must remain on the wroughtai project through at least the June 20, 2026 AgentX-AgentBeats Phase 2 submission window.
+
+---
+
 *(Append new decisions below. Never edit past entries — add a superseding entry if direction changes.)*
