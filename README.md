@@ -29,8 +29,8 @@ docker build -t my-brain:v1 /path/to/your/submission
 # Run self-eval against public dev qrels
 brain-wrought self-eval --submission my-brain:v1
 
-# Submit officially
-brain-wrought submit --image my-brain:v1 --submission-yaml ./submission.yaml
+# Submit officially (Phase 4 — stub currently exits 1 with instructions)
+brain-wrought submit
 ```
 
 See [SUBMISSION_PROTOCOL.md](https://github.com/forgedynamicsai/brain-wrought-skills/blob/main/SUBMISSION_PROTOCOL.md) for the full submission interface.
