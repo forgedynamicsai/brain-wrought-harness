@@ -55,4 +55,12 @@ Format: date, decision, reasoning, alternative considered.
 
 ---
 
+## 2026-04-19 — Repos hosted under forgedynamicsai GitHub org
+
+- **Decision:** Brain-Wrought repos live under github.com/forgedynamicsai, not a standalone brain-wrought org
+- **Reasoning:** Practical — existing org, no new admin overhead. No commercial activity (no revenue, no marketing, no licensing) so ethics optics remain clean. "Independent benchmark" claim holds as long as Forge Dynamics doesn't commercialize Brain-Wrought.
+- **Constraint added:** If Forge Dynamics ever takes outside revenue, Brain-Wrought must be transferred to a neutral org before any Forge Dynamics commercial announcement.
+
+---
+
 *(Append new decisions below. Never edit past entries — add a superseding entry if direction changes.)*
