@@ -63,4 +63,14 @@ Format: date, decision, reasoning, alternative considered.
 
 ---
 
+## 2026-04-19 — brain_wrought schema hosted in wroughtai Supabase project
+
+- **Decision:** Use `brain_wrought` schema inside the `wroughtai` Supabase project (ref: `dtvdkuhteckxiwdjiikf`, US East) instead of a dedicated project
+- **Reasoning:** Supabase free tier limits to 2 active projects per user; all slots occupied. `brain_wrought` schema is fully isolated from WroughtAI's `public` schema. RLS enabled independently.
+- **Constraint:** WroughtAI migrations must stay in `public` schema. Brain-Wrought migrations use `brain_wrought` schema. No cross-schema queries.
+- **Exit condition:** When a free slot opens, create a dedicated Supabase project, run `migrations/0001_initial.sql` against it, and drop `brain_wrought` schema from the wroughtai project.
+- **Documented in:** `forgedynamicsai/wrought-ai/supabase/SHARED_SCHEMAS.md`
+
+---
+
 *(Append new decisions below. Never edit past entries — add a superseding entry if direction changes.)*
