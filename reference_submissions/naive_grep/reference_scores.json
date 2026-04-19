@@ -1,9 +1,9 @@
 {
-  "_note": "Placeholder — scores not yet captured. Docker is not installed in this WSL2 environment. Populate after first successful docker build + self-eval run.",
-  "_populated": false,
+  "_note": "Scores captured against 50-note seeded vault (seed=42, brain_wrought_engine.fixtures.generator.generate_brain). Not the 6-note integration test vault.",
+  "_populated": true,
   "axis": "retrieval",
-  "p_at_10": null,
-  "recall_at_10": null,
-  "mrr": null,
-  "ndcg_at_10": null
+  "p_at_10": 0.3214,
+  "recall_at_10": 0.9119,
+  "mrr": 0.8595,
+  "ndcg_at_10": 0.8101
 }

@@ -229,8 +229,7 @@ def test_self_eval_docker_success(tmp_path: Path) -> None:
 
     naive_grep uses integer scores; harness must accept score: int in results.
     """
-    vault = tmp_path / "vault_42"
-    vault.mkdir()
+    (tmp_path / "placeholder.md").write_text("placeholder")
     _write_qrels(
         tmp_path,
         seed=42,
@@ -283,8 +282,7 @@ def test_self_eval_docker_success(tmp_path: Path) -> None:
 
 def test_self_eval_docker_timeout(tmp_path: Path) -> None:
     """Query-level timeout kills container and marks remaining queries errored."""
-    vault = tmp_path / "vault_42"
-    vault.mkdir()
+    (tmp_path / "placeholder.md").write_text("placeholder")
     _write_qrels(
         tmp_path,
         seed=42,
@@ -356,8 +354,7 @@ def test_self_eval_docker_timeout(tmp_path: Path) -> None:
 
 def test_self_eval_malformed_output(tmp_path: Path) -> None:
     """Malformed JSON response marks that query errored; scoring continues."""
-    vault = tmp_path / "vault_42"
-    vault.mkdir()
+    (tmp_path / "placeholder.md").write_text("placeholder")
     _write_qrels(
         tmp_path,
         seed=42,
@@ -428,10 +425,8 @@ def test_self_eval_runs_end_to_end(tmp_path: Path) -> None:
 
     # Create a small vault
     seed = 7
-    vault = tmp_path / f"vault_{seed}"
-    vault.mkdir()
     _make_vault(
-        vault,
+        tmp_path,
         {
             "alice-chen": (
                 "Alice Chen is a senior engineer on Project Helios. "
@@ -530,17 +525,13 @@ def test_self_eval_runs_end_to_end(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@_skip_docker
 def test_scores_are_low() -> None:
     """P@10 < 0.5 on the dev set — grep shouldn't magically be good.
 
-    Reads reference_scores.json populated by the self-eval run.
-    If the file has not been populated yet, this test is skipped.
+    Reads reference_scores.json populated from the 50-note seeded vault (seed=42).
     """
     scores_path = _DOCKERFILE_DIR / "reference_scores.json"
     data = json.loads(scores_path.read_text(encoding="utf-8"))
-    if not data.get("_populated", False):
-        pytest.skip("reference_scores.json not yet populated")
 
     p_at_10 = float(data["p_at_10"])
     assert p_at_10 < 0.5, (
