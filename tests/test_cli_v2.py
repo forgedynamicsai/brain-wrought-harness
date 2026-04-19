@@ -1,15 +1,14 @@
-"""BW-004b: tests for the renamed self-eval command, Docker wiring, submit stub."""
+"""BW-004b/BW-004c: tests for self-eval command, orchestration wiring, submit stub."""
 from __future__ import annotations
 
 import json
-import subprocess
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from typer.testing import CliRunner
 
 from brain_wrought_harness.cli import app
+from brain_wrought_harness.models import AxisResult
 
 runner = CliRunner()
 
@@ -27,12 +26,23 @@ def fixtures_dir(tmp_path: Any) -> Any:
     return str(d)
 
 
-def _valid_axis_results() -> list[dict[str, object]]:
-    return [
-        {"axis": "retrieval", "score": 0.8, "detail": {}},
-        {"axis": "ingestion", "score": 0.6, "detail": {}},
-        {"axis": "assistant", "score": 0.7, "detail": {}},
-    ]
+def _ok_axis_result() -> AxisResult:
+    return AxisResult(
+        axis="retrieval",
+        score=0.75,
+        detail={
+            "precision_at_k": 0.8,
+            "recall_at_k": 0.6,
+            "mrr": 0.9,
+            "ndcg_at_k": 0.7,
+            "abstention_precision": 1.0,
+            "abstention_total": 2,
+            "abstention_correct": 2,
+            "query_count": 10,
+            "error_count": 0,
+            "k": 10,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +56,6 @@ def test_self_eval_renamed() -> None:
     result_new = runner.invoke(app, ["self-eval", "--help"])
     assert result_old.exit_code != 0, "evaluate command should not exist"
     assert result_new.exit_code == 0, "self-eval command should exist"
-    # Verify that the error for 'evaluate' is a "no such command" message
     assert "evaluate" in result_old.output or "No such command" in result_old.output
 
 
@@ -64,7 +73,7 @@ def test_submit_stub() -> None:
 
 
 def test_self_eval_dry_run(fixtures_dir: str) -> None:
-    """Dry-run behavior still works after rename (prints config JSON, exits 0)."""
+    """Dry-run behavior still works (prints config JSON, exits 0)."""
     result = runner.invoke(
         app,
         ["self-eval", "--submission", "myimage:latest", "--fixtures", fixtures_dir, "--dry-run"],
@@ -75,46 +84,35 @@ def test_self_eval_dry_run(fixtures_dir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# self-eval Docker success path
+# self-eval orchestration success paths
 # ---------------------------------------------------------------------------
 
 
 def test_self_eval_docker_success(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mocked subprocess returning valid JSON produces EvaluationResult."""
-    fixtures_dir = str(tmp_path)
-    axis_data = _valid_axis_results()
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = json.dumps(axis_data).encode()
-    mock_result.stderr = b""
-
-    monkeypatch.setattr("brain_wrought_harness.cli.subprocess.run", lambda *a, **kw: mock_result)
-
+    """Mocked orchestration returning AxisResult produces human-readable output."""
+    monkeypatch.setattr(
+        "brain_wrought_harness.cli.run_retrieval_axis",
+        lambda **kw: _ok_axis_result(),
+    )
     result = runner.invoke(
         app,
-        ["self-eval", "--submission", "myimage:latest", "--fixtures", fixtures_dir],
+        ["self-eval", "--submission", "myimage:latest", "--fixtures", str(tmp_path)],
     )
     assert result.exit_code == 0, result.output
-    assert "evaluated" in result.output or "composite_score" in result.output
+    assert "retrieval" in result.output
+    assert "score" in result.output
 
 
 def test_self_eval_docker_success_json_output(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """--output json produces parseable JSON with status=evaluated."""
-    fixtures_dir = str(tmp_path)
-    axis_data = _valid_axis_results()
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = json.dumps(axis_data).encode()
-    mock_result.stderr = b""
-
-    monkeypatch.setattr("brain_wrought_harness.cli.subprocess.run", lambda *a, **kw: mock_result)
-
+    """--output json produces parseable JSON with axis=retrieval and score."""
+    monkeypatch.setattr(
+        "brain_wrought_harness.cli.run_retrieval_axis",
+        lambda **kw: _ok_axis_result(),
+    )
     result = runner.invoke(
         app,
         [
@@ -122,85 +120,81 @@ def test_self_eval_docker_success_json_output(
             "--submission",
             "myimage:latest",
             "--fixtures",
-            fixtures_dir,
+            str(tmp_path),
             "--output",
             "json",
         ],
     )
     assert result.exit_code == 0, result.output
     parsed = json.loads(result.output)
-    assert parsed["status"] == "evaluated"
-    assert len(parsed["axis_results"]) == 3
-    # composite_score is mean of 0.8, 0.6, 0.7 = 0.7
-    assert abs(parsed["composite_score"] - 0.7) < 1e-6
-
-
-# ---------------------------------------------------------------------------
-# self-eval Docker error paths
-# ---------------------------------------------------------------------------
+    assert parsed["axis"] == "retrieval"
+    assert abs(parsed["score"] - 0.75) < 1e-6
 
 
 def test_self_eval_docker_timeout(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mocked subprocess timing out produces result with error='timeout after 3600s'."""
-    fixtures_dir = str(tmp_path)
+    """Orchestration RuntimeError (startup timeout) exits 1 and prints the message."""
 
-    def _raise_timeout(*args: object, **kwargs: object) -> None:
-        raise subprocess.TimeoutExpired(cmd=["docker"], timeout=3600)
+    def _raise(**kw: object) -> AxisResult:
+        raise RuntimeError("container did not respond within 60s startup timeout")
 
-    monkeypatch.setattr("brain_wrought_harness.cli.subprocess.run", _raise_timeout)
-
+    monkeypatch.setattr("brain_wrought_harness.cli.run_retrieval_axis", _raise)
     result = runner.invoke(
         app,
-        ["self-eval", "--submission", "myimage:latest", "--fixtures", fixtures_dir],
+        ["self-eval", "--submission", "myimage:latest", "--fixtures", str(tmp_path)],
     )
     assert result.exit_code == 1
-    assert "timeout after 3600s" in result.output
+    assert "startup timeout" in result.output
 
 
 def test_self_eval_docker_failure(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Mocked subprocess exit 1 captures first 500 chars of stderr."""
-    fixtures_dir = str(tmp_path)
-    stderr_msg = "container failed with a descriptive error message"
+    """Orchestration RuntimeError (container start failed) exits 1 and prints error."""
 
-    mock_result = MagicMock()
-    mock_result.returncode = 1
-    mock_result.stdout = b""
-    mock_result.stderr = stderr_msg.encode()
+    def _raise(**kw: object) -> AxisResult:
+        raise RuntimeError("failed to start container 'myimage:latest': No such file")
 
-    monkeypatch.setattr("brain_wrought_harness.cli.subprocess.run", lambda *a, **kw: mock_result)
-
+    monkeypatch.setattr("brain_wrought_harness.cli.run_retrieval_axis", _raise)
     result = runner.invoke(
         app,
-        ["self-eval", "--submission", "myimage:latest", "--fixtures", fixtures_dir],
+        ["self-eval", "--submission", "myimage:latest", "--fixtures", str(tmp_path)],
     )
     assert result.exit_code == 1
-    assert "failed" in result.output
-    assert stderr_msg[:50] in result.output
+    assert "error" in result.output.lower()
 
 
 def test_self_eval_malformed_output(
     tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Non-JSON stdout produces clean error."""
-    fixtures_dir = str(tmp_path)
-
-    mock_result = MagicMock()
-    mock_result.returncode = 0
-    mock_result.stdout = b"this is not json at all"
-    mock_result.stderr = b""
-
-    monkeypatch.setattr("brain_wrought_harness.cli.subprocess.run", lambda *a, **kw: mock_result)
-
+    """Partial results with errors are returned without crashing (exit 0)."""
+    partial = AxisResult(
+        axis="retrieval",
+        score=0.0,
+        detail={
+            "precision_at_k": 0.0,
+            "recall_at_k": 0.0,
+            "mrr": 0.0,
+            "ndcg_at_k": 0.0,
+            "abstention_precision": 0.0,
+            "abstention_total": 0,
+            "abstention_correct": 0,
+            "query_count": 5,
+            "error_count": 5,
+            "k": 10,
+        },
+    )
+    monkeypatch.setattr(
+        "brain_wrought_harness.cli.run_retrieval_axis",
+        lambda **kw: partial,
+    )
     result = runner.invoke(
         app,
-        ["self-eval", "--submission", "myimage:latest", "--fixtures", fixtures_dir],
+        ["self-eval", "--submission", "myimage:latest", "--fixtures", str(tmp_path)],
     )
-    assert result.exit_code == 1
-    assert "malformed JSON" in result.output
+    assert result.exit_code == 0, result.output
+    assert "retrieval" in result.output
 
 
 # ---------------------------------------------------------------------------
