@@ -13,6 +13,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Checkout brain-wrought-engine (scorer dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: forgedynamicsai/brain-wrought-engine
+          path: ../brain-wrought-engine
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12.3"

@@ -24,6 +24,7 @@ supabase = "2.10.0"
 docker = "7.1.0"
 rich = "13.9.4"
 PyYAML = "6.0.3"
+brain-wrought-engine = {path = "../brain-wrought-engine", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "8.3.4"
