@@ -14,3 +14,7 @@ venv/
 .coverage
 htmlcov/
 *.log
+
+# Supabase CLI local scratch state
+supabase/.temp/
+supabase/.branches/
