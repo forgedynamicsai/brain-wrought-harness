@@ -1,15 +1,19 @@
 """Naive grep baseline submission for Brain-Wrought retrieval axis.
 
-Protocol: reads a single JSON request from stdin, writes a single JSON
-response to stdout.  No LLM calls.  No embedding similarity.  Pure
-token-frequency grep over vault note files using ripgrep.
+Protocol: per-query JSON-line pipe (SUBMISSION_PROTOCOL.md §3).
+Reads one JSON request per line from stdin, writes one JSON response
+line to stdout per query, flushes after each response.  Loop exits
+on EOF (harness closes stdin after the last query).
 
-Request (stdin):
-    {"mode": "retrieve", "vault_path": "/vault", "query": "...", "k": 10}
+Request (one JSON line per query):
+    {"mode": "retrieve", "query": "...", "k": 10}
 
-Response (stdout):
+Response (one JSON line per request):
     {"results": [{"note_id": "<stem>", "score": <int>}, ...],
      "abstained": <bool>, "elapsed_ms": <int>}
+
+vault_path defaults to /vault (the Docker volume mount).  The harness
+mounts the vault read-only at /vault; no vault_path in the request.
 """
 from __future__ import annotations
 
@@ -104,12 +108,16 @@ def handle_request(request: dict[str, object]) -> dict[str, object]:
 
 
 if __name__ == "__main__":
-    raw = sys.stdin.read()
-    try:
-        request = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        print(json.dumps({"error": f"invalid JSON input: {exc}"}))
-        sys.exit(1)
-
-    response = handle_request(request)
-    print(json.dumps(response))
+    for raw_line in sys.stdin:
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        try:
+            request = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            sys.stderr.write(json.dumps({"error": f"invalid JSON: {exc}"}) + "\n")
+            sys.stderr.flush()
+            continue
+        response = handle_request(request)
+        sys.stdout.write(json.dumps(response) + "\n")
+        sys.stdout.flush()
