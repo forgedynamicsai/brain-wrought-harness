@@ -147,7 +147,9 @@ def run_retrieval_axis(
       - expected_abstain=False + abstained=False → normal scoring path
 
     Args:
-        fixtures_dir: Directory containing qrels.json and vault_{seed}/.
+        fixtures_dir: Directory containing qrels.json and all .md note files
+                     at the top level (the flat-vault structure produced by
+                     brain_wrought_engine.fixtures.generator.generate_brain).
         image_tag: Docker image tag for the submission container.
         k: Number of results to request per query (default 10).
         query_timeout: Per-query response timeout in seconds (default 30).
@@ -167,7 +169,14 @@ def run_retrieval_axis(
     if not qrel_set.entries:
         return _zero_axis_result(k=k)
 
-    vault_path = fixtures_dir / f"vault_{qrel_set.seed}"
+    vault_path = fixtures_dir
+
+    md_files = list(fixtures_dir.glob("*.md"))
+    if not md_files:
+        raise RuntimeError(
+            f"no .md files found in fixtures_dir={fixtures_dir!r}; expected a "
+            f"flat vault directory with note files at the top level"
+        )
 
     try:
         proc: subprocess.Popen[str] = subprocess.Popen(

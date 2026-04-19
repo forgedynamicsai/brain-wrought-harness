@@ -1,17 +1,23 @@
 """BW-004c: per-query orchestration loop tests.
 
-All Docker subprocess calls are mocked so tests run without Docker.
+All Docker subprocess calls are mocked so tests run without Docker,
+except test_vault_mount_matches_fixtures_dir which requires naive-grep:v1.
 """
 from __future__ import annotations
 
 import json
+import subprocess
 import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from brain_wrought_harness.orchestration import load_qrel_set, run_retrieval_axis
+from brain_wrought_harness.orchestration import (
+    _score_precision_at_k,
+    load_qrel_set,
+    run_retrieval_axis,
+)
 from brain_wrought_harness.orchestration_models import LocalQrelEntry, LocalQrelSet
 
 # ---------------------------------------------------------------------------
@@ -69,6 +75,13 @@ def _write_qrels(fixtures_dir: Path, qrel_set: LocalQrelSet) -> None:
     qrels_path.write_text(json.dumps(data), encoding="utf-8")
 
 
+def _touch_notes(fixtures_dir: Path, *note_ids: str) -> None:
+    """Create stub .md files so the vault preflight check passes."""
+    ids = note_ids if note_ids else ("_dummy",)
+    for note_id in ids:
+        (fixtures_dir / f"{note_id}.md").write_text(f"# {note_id}\n", encoding="utf-8")
+
+
 def _make_mock_proc(response_lines: list[str]) -> MagicMock:
     """Return a mock Popen that yields *response_lines* one per readline() call."""
     mock_proc = MagicMock()
@@ -119,7 +132,7 @@ def test_single_query_roundtrip(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([{"note_id": "note-a", "score": 1.0}])
     mock_proc = _make_mock_proc([response])
@@ -148,7 +161,7 @@ def test_multi_query_loop(tmp_path: Path) -> None:
     ]
     qset = _qrel_set(entries)
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     k = 10
     responses = [
@@ -182,7 +195,7 @@ def test_abstention_correct_positive(tmp_path: Path) -> None:
     )
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([], abstained=True)
     mock_proc = _make_mock_proc([response])
@@ -207,7 +220,7 @@ def test_abstention_correct_negative(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([{"note_id": "note-a", "score": 1.0}])
     mock_proc = _make_mock_proc([response])
@@ -232,7 +245,7 @@ def test_abstention_false_positive(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([], abstained=True)
     mock_proc = _make_mock_proc([response])
@@ -259,7 +272,7 @@ def test_abstention_false_negative(tmp_path: Path) -> None:
     )
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([{"note_id": "note-a", "score": 0.9}], abstained=False)
     mock_proc = _make_mock_proc([response])
@@ -286,7 +299,7 @@ def test_query_timeout(tmp_path: Path) -> None:
     ]
     qset = _qrel_set(entries)
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     first_response = _response_line([{"note_id": "note-0", "score": 1.0}])
 
@@ -333,7 +346,7 @@ def test_startup_timeout(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     block_event = threading.Event()
 
@@ -371,7 +384,7 @@ def test_container_cleanup_on_success(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line([{"note_id": "note-a", "score": 1.0}])
     mock_proc = _make_mock_proc([response])
@@ -395,7 +408,7 @@ def test_container_cleanup_on_exception(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     block_event = threading.Event()
 
@@ -436,7 +449,7 @@ def test_malformed_response_handled(tmp_path: Path) -> None:
     ]
     qset = _qrel_set(entries)
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     bad_line = "this is not valid json\n"
     good_line = _response_line([{"note_id": "note-2", "score": 1.0}])
@@ -483,7 +496,7 @@ def test_all_four_metrics_computed(tmp_path: Path) -> None:
     entry = _qrel_entry("q1", "What is X?", frozenset({"note-a", "note-b"}))
     qset = _qrel_set([entry])
     _write_qrels(tmp_path, qset)
-    (tmp_path / f"vault_{qset.seed}").mkdir()
+    _touch_notes(tmp_path)
 
     response = _response_line(
         [
@@ -510,3 +523,67 @@ def test_all_four_metrics_computed(tmp_path: Path) -> None:
     assert detail["recall_at_k"] == pytest.approx(1.0)
     assert detail["mrr"] == pytest.approx(1.0)
     assert float(detail["ndcg_at_k"]) > 0.0  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# 15. test_empty_vault_raises_clear_error
+# ---------------------------------------------------------------------------
+
+
+def test_empty_vault_raises_clear_error(tmp_path: Path) -> None:
+    """Preflight check raises RuntimeError when fixtures_dir has no .md files."""
+    entry = _qrel_entry("q1", "What is X?", frozenset({"note-a"}))
+    qset = _qrel_set([entry])
+    _write_qrels(tmp_path, qset)
+    # Deliberately do NOT create any .md files.
+
+    with pytest.raises(RuntimeError, match="no .md files"):
+        run_retrieval_axis(fixtures_dir=tmp_path, image_tag="test:latest")
+
+
+# ---------------------------------------------------------------------------
+# 16. test_vault_mount_matches_fixtures_dir  (integration, requires Docker)
+# ---------------------------------------------------------------------------
+
+
+def _naive_grep_image_present() -> bool:
+    result = subprocess.run(
+        ["docker", "image", "inspect", "naive-grep:v1"],
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+@pytest.mark.skipif(
+    not _naive_grep_image_present(),
+    reason="naive-grep:v1 Docker image not present",
+)
+def test_vault_mount_matches_fixtures_dir(tmp_path: Path) -> None:
+    """Integration: notes are visible inside the container after the vault-path fix."""
+    from brain_wrought_engine.fixtures.generator import generate_brain
+    from brain_wrought_engine.retrieval.qrel_generator import generate_qrels
+
+    vault_dir = generate_brain(
+        seed=42, fixture_index=0, out_dir=tmp_path, note_count=20, use_llm=False
+    )
+    qrel_set = generate_qrels(brain_dir=vault_dir, seed=42, query_count=5)
+    (vault_dir / "qrels.json").write_text(qrel_set.model_dump_json(), encoding="utf-8")
+
+    recorded_retrieved: list[tuple[str, ...]] = []
+
+    def _recording_precision(
+        relevant: frozenset[str], retrieved: tuple[str, ...], k: int
+    ) -> float:
+        recorded_retrieved.append(retrieved)
+        return _score_precision_at_k(relevant, retrieved, k)
+
+    with patch(
+        "brain_wrought_harness.orchestration._score_precision_at_k",
+        side_effect=_recording_precision,
+    ):
+        result = run_retrieval_axis(fixtures_dir=vault_dir, image_tag="naive-grep:v1")
+
+    assert result.score > 0.0, f"Expected non-zero score after vault-path fix; got {result.score}"
+    assert any(
+        len(r) > 0 for r in recorded_retrieved
+    ), "All non-abstention queries returned empty results — notes may not be mounted"
