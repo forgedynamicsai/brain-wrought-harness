@@ -227,11 +227,12 @@ develop = true
 litellm = "1.56.4"
 numpy = "2.2.1"
 pydantic = "2.10.4"
+pyyaml = "6.0.3"
 scipy = "1.15.0"
 
 [package.source]
 type = "directory"
-url = "../brain-wrought-engine"
+url = "engine"
 
 [[package]]
 name = "certifi"
